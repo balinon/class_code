@@ -1,0 +1,83 @@
+---
+- name: Handle Package Updates/Installation
+  connection: local
+  gather_facts: no
+  hosts: localhost
+  tasks:
+    - name: Add Atom PPA
+      become: true
+      apt_repository:
+        repo: ppa:webupd8team/atom
+        state: present
+    - name: Update and Upgrade Apt
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400
+    - name: Install Base Packages
+      become: true
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - open-vm-tools
+        - open-vm-tools-desktop
+        - net-tools
+        - network-manager
+        - tree
+        - docker.io
+    - name: Start NetworkManager
+      become: true
+      shell: systemctl start NetworkManager
+    - name: Install Desktop Packages
+      become: true
+      ignore_errors: yes
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - ubuntu-desktop
+        - xrdp
+        - gnome-tweak-tool
+        - atom
+- name: Install Postman
+  connection: local
+  gather_facts: no
+  hosts: localhost
+  tasks:
+    - name: wget Postman
+      get_url:
+        url: https://dl.pstmn.io/download/latest/linux64
+        dest: /home/ignw/postman.tar.gz
+    - name: Unzip Postman
+      become: true
+      shell: tar -xzf /home/ignw/postman.tar.gz -C /opt
+    - name: Add Link
+      become: true
+      shell: ln -s /opt/Postman/Postman /usr/bin/postman
+    - name: Cleanup Postman zip
+      file:
+        state: absent
+        path: /home/ignw/postman.tar.gz
+
+- name: Fix Python3 Incompatability in Ansible
+  connection: local
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Replace Line in asa_config.py
+      lineinfile:
+        path: /usr/local/lib/python3.6/dist-packages/ansible/plugins/action/asa_config.py
+        regexp: 'for key in result\.keys\(\)\:'
+        line: '        for key in list(result):'
+      become: true
+
+- name: Move NetPlan into place
+  connection: local
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Move Netplan
+      become: true
+      shell: mv /home/ignw/01-netcfg.yaml /etc/netplan/01-netcfg.yaml
